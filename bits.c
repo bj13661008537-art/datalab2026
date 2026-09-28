@@ -19,7 +19,7 @@
  * Difficulty: 1
  */
 int bitAnd(int x, int y) {
-    return 2;
+    return ~(~x|~y);
 }
 
 /*
@@ -30,7 +30,7 @@ int bitAnd(int x, int y) {
  *   Difficulty: 1
  */
 int bitXor(int x, int y) {
-    return 2;
+    return ~(~x&~y)&~(x&y);
 }
 
 /*
@@ -50,11 +50,24 @@ int bitXor(int x, int y) {
  *   1 if x and y have the same sign , 0 otherwise.
  */
 int samesign(int x, int y) {
-    return 2;
+    if(!x){
+        if(!y)
+            return 1;
+        else
+            return 0;
+    }
+    else{
+        if (!y)
+            return 0;
+        else
+            if(x>>31 ^ y>>31)
+                return 0;
+            else return 1;
+    }
 }
 
 /*
- * logtwo - Calculate the base-2 logarithm of a positive integer using bit
+ * logtwo - Calculate the base-2 logarithm of a positive integer using使用位移运算计算一个正整数的以 2 为底的对数
  *   shifting. (Think about bitCount)
  *   Note: You may assume that v > 0
  *   Example: logtwo(32) = 5
@@ -63,7 +76,17 @@ int samesign(int x, int y) {
  *   Difficulty: 4
  */
 int logtwo(int v) {
-    return 2;
+    int a=(v > 0xFFFF)<<4;
+    v=v>>a;
+    int b=(v > 0xFF)<<3;
+    v=v>>b;
+    int c=(v > 0xF)<<2;
+    v=v>>c;
+    int d=(v > 0x3)<<1;
+    v=v>>d;
+    int e=(v > 0x1);
+    v=v>>e;
+    return a|b|c|d|e;
 }
 
 /*
@@ -76,7 +99,12 @@ int logtwo(int v) {
  *    Difficulty: 2
  */
 int byteSwap(int x, int n, int m) {
-    return 2;
+    int move_n = n << 3;
+    int move_m = m << 3;
+    int byte_n = (x>> move_n) & 0xFF;
+    int byte_m = (x>> move_m) & 0xFF;
+    int mask = 0xFF << move_m | 0xFF << (move_n);
+    return (x & ~mask) | (byte_n << move_m) | (byte_m << move_n);
 }
 
 /*
@@ -87,8 +115,17 @@ int byteSwap(int x, int n, int m) {
  *   Max ops: 30
  *   Difficulty: 3
  */
-unsigned reverse(unsigned v) {
-    return 2;
+unsigned reverse(unsigned v) { 
+    unsigned result =0;
+    int i = 32;
+    while(i != 0){
+        result = result<<1;
+        unsigned temp = v & 1;
+        result = result | temp;
+        v = v >> 1;
+        i = i - 1;
+    }
+    return result;
 }
 
 /*
@@ -100,30 +137,57 @@ unsigned reverse(unsigned v) {
  *   Difficulty: 3
  */
 int logicalShift(int x, int n) {
-    return 2;
+    x = x >> n;
+    int shift_n = 32 + (~n + 1);
+    int no_32shift = shift_n & 0x1F;
+    int mask = ~(~0 << no_32shift) | (((!n)<<31)>>31);//int mask = ~(~0 << no_32shift) | ((~(!n)) + 1);
+    return x & mask;
 }
 
 /*
- * leftBitCount - returns count of number of consective 1's in left-hand (most) end of word.
- *   Examples: leftBitCount(-1) = 32, leftBitCount(0xFFF0F0F0) = 12,
- *             leftBitCount(0xFE00FF0F) = 7
+ * leftBitCount - returns count of number of consective（连续的） 1's in left-hand (most) end of word.
+ *   Examples: leftBitCount(-1) = 32, leftBitCount(0xFFF0F0F0) = 12,leftBitCount(0xFE00FF0F) = 7
  *   Legal ops: ! ~ & ^ | + << >>
  *   Max ops: 50
  *   Difficulty: 4
  */
 int leftBitCount(int x) {
-    return 2;
+    int allone = !~x;
+    int cnt = 0;
+    int h16_allone = !(~(x >> 16));
+    int tmp = h16_allone << 4;
+    cnt += tmp;
+    x = x << tmp;
+    int h8_allone = !(~(x >> 24));
+    tmp = h8_allone << 3;
+    cnt += tmp;
+    x = x << tmp;
+    int h4_allone = !(~(x >> 28));
+    tmp = h4_allone << 2;
+    cnt += tmp;
+    x = x << tmp;
+    int h2_allone = !(~(x >> 30));
+    tmp = h2_allone << 1;
+    cnt += tmp;
+    x = x << tmp;
+    int h1_one = !(~(x >> 31));
+    cnt += h1_one;
+    return cnt + allone;
 }
 
 /*
- * float_i2f - Return bit-level equivalent of expression (float) x
- *   Result is returned as unsigned int, but it is to be interpreted as
- *   the bit-level representation of a single-precision floating point values.
+ * float_i2f - Return bit-level equivalent(等价结果) of expression (float) x
+ *   Result is returned as unsigned int（无符号整数）, but it is to be interpreted as the bit-level representation of a single-precision floating point values（单精度浮点数二进制位表示）.
  *   Legal ops: if else while for & | ~ + - >> << < > ! ==
  *   Max ops: 30
  *   Difficulty: 4
  */
 unsigned float_i2f(int x) {
+    unsigned int res = 0;
+    int sign = (x >> 31) & 0x1;
+    int abs;
+    if(x < 0) abs = -x;
+    else abs = x;
     return 2;
 }
 
@@ -143,20 +207,58 @@ unsigned floatScale2(unsigned uf) {
 }
 
 /*
- * float64_f2i - Convert a 64-bit IEEE 754 floating-point number to a 32-bit signed integer.
- *   The conversion rounds towards zero.
- *   Note: Assumes IEEE 754 representation and standard two's complement integer format.
+ * float64_f2i - Convert a 64-bit IEEE 754 floating-point number to a 32-bit signed integer.1+11+52
+ *   The conversion rounds towards zero.向零舍入（直接截断小数）
+ *   Note: Assumes IEEE 754 representation and standard two's complement（二进制补码） integer format.
  *   Parameters:
  *     uf1 - The lower 32 bits of the 64-bit floating-point number.
  *     uf2 - The higher 32 bits of the 64-bit floating-point number.
  *   Returns:
- *     The converted integer value, or 0x80000000 on overflow, or 0 on underflow.
+ *     The converted integer value, or 0x80000000 on overflow, or 0 on underflow.返回转换后的整数值，溢出时返回0x80000000，下溢时返回0
  *   Legal ops: >> << | & ~ ! + - > < >= <= if else
  *   Max ops: 60
  *   Difficulty: 3
  */
-int float64_f2i(unsigned uf1, unsigned uf2) {
-    return 2;
+int float64_f2i(unsigned uf1, unsigned uf2) {/*构造一个1后面接52位尾数的整数N，原本的(-1)^S*M*2^real->(-1)^S*N*2^(real-52)
+    记k=real-52,考虑正负性
+    0、正数：real大于30肯定溢出int
+    负数是唯一考虑：且real<=30
+    k<0一定右移，位数d=52-real。
+    N=high*2^32+low(low是低32位)。
+    所以考虑右移位数d是否到32。
+    到：先右移32位,low消失,N=high;high再把剩下的位数右移完(d-32)
+    不到:low有一部分被留存；high全部21有效位留存，要挪到正确位置（左移32-d）*/
+    int sign = uf2 >> 31;
+    int E = (uf2 >>20) & 0x7FF;
+    int real_e = E - 1023;
+    unsigned M_high = (uf2 & (0XFFFFF)) | 1<<20;
+    unsigned M_low = uf1;
+    unsigned res = 0;
+    if (real_e < 0){
+        return 0;
+    }
+    if(E > 0x7FE){
+        return 0x80000000;
+    }
+    if(!E){
+        return 0;
+    }
+    if (real_e > 30){
+        return 0x80000000;
+    }
+    if (real_e < 20){//52-real_e>=32;
+        res = M_high >> (20 - real_e);//整个low被弄没了，只剩high右移(52-real_e)-32
+    }
+    else if(real_e >20){//high左移32-(52-real_e),low(52-real_e)
+        res = (M_high << (real_e-20)) | M_low >> (52 - real_e);
+    }
+    else{
+        res = M_high;
+    }
+    if (sign){
+        res = ~res + 1;
+    }
+    return res;
 }
 
 /*
