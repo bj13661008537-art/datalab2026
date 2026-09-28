@@ -18,7 +18,7 @@
  * Max ops: 7
  * Difficulty: 1
  */
-int bitAnd(int x, int y) {
+int bitAnd(int x, int y) {//德摩根
     return ~(~x|~y);
 }
 
@@ -50,7 +50,7 @@ int bitXor(int x, int y) {
  *   1 if x and y have the same sign , 0 otherwise.
  */
 int samesign(int x, int y) {
-    if(!x){
+    if(!x){//特殊
         if(!y)
             return 1;
         else
@@ -60,7 +60,7 @@ int samesign(int x, int y) {
         if (!y)
             return 0;
         else
-            if(x>>31 ^ y>>31)
+            if(x>>31 ^ y>>31)//首位符号位
                 return 0;
             else return 1;
     }
@@ -139,8 +139,8 @@ unsigned reverse(unsigned v) {
 int logicalShift(int x, int n) {
     x = x >> n;
     int shift_n = 32 + (~n + 1);
-    int no_32shift = shift_n & 0x1F;
-    int mask = ~(~0 << no_32shift) | (((!n)<<31)>>31);//int mask = ~(~0 << no_32shift) | ((~(!n)) + 1);
+    int no_32shift = shift_n & 0x1F;//防止出现不合法32位移动，学到新的技巧&0x1F
+    int mask = ~(~0 << no_32shift) | (((!n)<<31)>>31);//int mask = ~(~0 << no_32shift) | ((~(!n)) + 1)也行
     return x & mask;
 }
 
@@ -152,7 +152,7 @@ int logicalShift(int x, int n) {
  *   Difficulty: 4
  */
 int leftBitCount(int x) {
-    int allone = !~x;
+    int allone = !~x;//全一特殊情况
     int cnt = 0;
     int h16_allone = !(~(x >> 16));
     int tmp = h16_allone << 4;
@@ -183,12 +183,38 @@ int leftBitCount(int x) {
  *   Difficulty: 4
  */
 unsigned float_i2f(int x) {
-    unsigned int res = 0;
-    int sign = (x >> 31) & 0x1;
-    int abs;
-    if(x < 0) abs = -x;
-    else abs = x;
-    return 2;
+    unsigned res = 0;
+    unsigned sign = 0;
+    unsigned abs = x;
+    if(x < 0) {
+        sign = 1;
+        abs = -x;
+    }
+    //查找最高位1
+
+    int E = 158;
+    if (x == 0) return 0;
+    while(!(abs & 0x80000000)){
+        E = E-1;
+        abs = abs<<1;
+    }
+    unsigned lost = abs & 0xff;
+    int round = 0;
+    unsigned m;
+    if (lost > 0x80) round = 1;
+    else{
+        if (lost == 0x80){
+            if ((abs >> 8) & 1)//奇数
+                round=1;
+        }
+    }
+    if (round){
+        abs = abs + 0x100;//第八位（从0数）最低保留位
+        if (!(abs & 0x80000000)) E=E+1;
+    }
+    m = (abs >> 8) & 0x7FFFFF;
+    res = (sign << 31)|(E << 23)|m;
+    return res;
 }
 
 /*
@@ -197,13 +223,24 @@ unsigned float_i2f(int x) {
  *   Both the argument and result are passed as unsigned int's, but
  *   they are to be interpreted as the bit-level representation of
  *   single-precision floating point values.
- *   When argument is NaN, return argument
+ *   When argument is NaN, return argument阶码全1尾数非0
  *   Legal ops: & >> << | if > < >= <= ! ~ else + ==
  *   Max ops: 30
  *   Difficulty: 4
  */
+ //不用浮点运算，仅通过整数位操作模拟IEEE754浮点乘2
 unsigned floatScale2(unsigned uf) {
-    return 2;
+    unsigned sign = uf & 0x80000000;
+    unsigned E = (uf >> 23) & 0xFF;
+    unsigned M = uf & 0x7FFFFF;
+    if( E == 255) return uf;
+    else{
+        if (E == 0){
+            M = M << 1;
+        }
+        else E=E+1;
+    }
+    return sign|(E << 23)|M;
 }
 
 /*
@@ -268,12 +305,19 @@ int float64_f2i(unsigned uf1, unsigned uf2) {/*构造一个1后面接52位尾数
  *   The unsigned value that is returned should have the identical bit
  *   representation as the single-precision floating-point number 2.0^x.
  *   If the result is too small to be represented as a denorm, return
- *   0. If too large, return +INF.
+ *   0. If too large, return +INF(0x7F800000).
  *
  *   Legal ops: < > <= >= << >> + - & | ~ ! if else &&
  *   Max ops: 30
  *   Difficulty: 4
  */
-unsigned floatPower2(int x) {
-    return 2;
+unsigned floatPower2(int x) {//sign=0
+    int E = x + 127;
+    if (x > 127) return 0x7F800000;//上溢
+    else if (x < -149) return 0;//下溢
+    else if (x <= -127) {//非规格化0.M,E=0,找M
+        unsigned m = 1 << (x + 149 );
+        return m;
+    }
+    else return (E << 23);//规格化1.M,E=x+127,M0
 }
